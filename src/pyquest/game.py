@@ -13,19 +13,35 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License."""
 
+import os
+import sys
 import xml.etree.ElementTree as ET
 
 
 class QuestGame:
-    def __init__(self, game_location, from_qfile=True):
+    def __init__(self, game_file, launch_dir=None, from_qfile=True):
         if from_qfile:
-            self.game_file = open(game_location + "/game.aslx")
-            self.game_folder = game_location
+            file_name = game_file + os.path.sep + "game.aslx"
+            self.game_folder = game_file
         else:
-            self.game_file = open(game_location)
-            self.game_folder = '/'.join(self.game_file.name.split('.')[:-1])
+            file_name = game_file
+            self.game_folder = os.path.sep.join(os.path.split(game_file)[:-1])
+
+        try:
+            self.game_file = open(file_name)
+        except FileNotFoundError as e:
+            print("*** Could not read game file", game_file, file=sys.stderr)
+
+        if launch_dir is not None:
+            self.launch_dir = launch_dir
+        else:
+            self.launch_dir = self.game_folder
+
         self.tree = ET.parse(self.game_file)
         self.root = self.tree.getroot()
+
+    def __del__(self):
+        self.game_file.close()
 
     def run(self):
         for element in self.root:
