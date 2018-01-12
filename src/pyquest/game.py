@@ -19,7 +19,8 @@ import xml.etree.ElementTree as ET
 
 
 class QuestGame:
-    def __init__(self, game_file, launch_dir=None, from_qfile=True):
+    def __init__(self, game_file, launch_dir=None, from_qfile=True, debug=False):
+        self.debug = debug
         if from_qfile:
             file_name = game_file + os.path.sep + "game.aslx"
             self.game_folder = game_file
@@ -27,21 +28,27 @@ class QuestGame:
             file_name = game_file
             self.game_folder = os.path.sep.join(os.path.split(game_file)[:-1])
 
-        try:
-            self.game_file = open(file_name)
-        except FileNotFoundError as e:
-            print("*** Could not read game file", game_file, file=sys.stderr)
-
         if launch_dir is not None:
             self.launch_dir = launch_dir
         else:
             self.launch_dir = self.game_folder
+        if self.debug:
+            print("Attempting to read", file_name, "with launch dir", self.launch_dir,
+                  "from packed Quest file" if from_qfile else "in raw mode.")
+        try:
+            game = open(file_name, 'rb')
+        except FileNotFoundError as e:
+            print("*** I was unable to read the game file", game_file, file=sys.stderr)
 
-        self.tree = ET.parse(self.game_file)
-        self.root = self.tree.getroot()
+        tmp = game.read()
+        game_txt = tmp.decode('utf-8', errors='ignore')
+        while game_txt[0] != '<':
+            game_txt = game_txt[1:]
 
-    def __del__(self):
-        self.game_file.close()
+        # self.tree = ET.parse(self.game_file)
+        self.root = ET.fromstring(game_txt)
+        if self.debug:
+            print("Successfully parsed ASLX file.")
 
     def run(self):
         for element in self.root:
