@@ -1,4 +1,4 @@
-# pyGame
+# pyQuest
 Currently, there's not much here, but I hope to turn this into a Python-based interpreter for interactive fiction games created in [Quest](https://textadventures.co.uk/Quest).
 
 ### Why Python?
