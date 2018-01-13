@@ -30,14 +30,8 @@ parser.add_argument('-v', '--verbose', help="Run in verbose mode", action='store
 arguments = parser.parse_args()
 
 print("pyQuest", VERSION)
-# if len(sys.argv) < 2:
-#     print("\nUsage:")
-#     print("py" if os.name == 'nt' else "python3", "-m pyquest [FILENAME]")
-#     print("Where [FILENAME] is the name of a Quest game file")
-#     print("(either a packed .quest file, or a raw .aslx source file)")
-#     exit(1)
 
-# This will become necessary for multimedia functions.
+# This will probably become necessary for multimedia functions.
 # try:
 #     import pygame
 # except ImportError:
@@ -51,8 +45,8 @@ if file_name[-4:] == ".zip" or file_name[-6:] == ".quest":
     print("Opening QUEST file...")
     try:
         zipped = ZipFile(file_name, 'r')
-    except FileNotFoundError:
-        print("*** Game File", file_name, "not found!", file=sys.stderr)
+    except FileNotFoundError as ex:
+        print("*** Game File", file_name, "not found!", ex.strerror, file=sys.stderr)
         exit(127)
     game_folder = tempfile.mkdtemp()
     zipped.extractall(game_folder)

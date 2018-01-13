@@ -17,6 +17,9 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 
+from pyquest.script_engine import Script
+from pyquest.world_model import QuestObject
+
 
 class QuestGame:
     def __init__(self, game_file, launch_dir=None, from_qfile=True, debug=False):
@@ -39,6 +42,7 @@ class QuestGame:
             game = open(file_name, 'rb')
         except FileNotFoundError as e:
             print("*** I was unable to read the game file", game_file, file=sys.stderr)
+            exit(127)
 
         tmp = game.read()
         game_txt = tmp.decode('utf-8', errors='ignore')
@@ -50,6 +54,46 @@ class QuestGame:
         if self.debug:
             print("Successfully parsed ASLX file.")
 
+        self.objects = {}
+        self.meta = {}
+
     def run(self):
         for element in self.root:
             print(element)
+            if element.tag == "object":
+                self.create_object(element)
+            # TODO: Handle other types of tags
+
+    def create_object(self, tag, parent_obj=None):
+        attributes = {
+            "inherit": []
+        }
+        delayed_children = []
+        for attr in tag:
+            if attr.tag == "object":
+                delayed_children.append(attr)
+            elif attr.text is None and attr.attrib == {}:
+                attributes[attr.tag] = True
+            elif attr.tag == "inherit":
+                attributes['inherit'].append(attr.attrib['name'])
+            else:
+                the_type = attr.attrib.get('type', None)
+                if the_type == "script":
+                    attributes[attr.tag] = Script(attr.text)
+                elif the_type == "boolean":
+                    attributes[attr.tag] = True if attr.text == "true" else False
+                elif the_type == "stringlist":
+                    values = []
+                    for item in attr:
+                        if item.tag == "value":
+                            values.append(item.text)
+                    attributes[attr.tag] = values
+                else:
+                    attributes[attr.tag] = attr.text
+        attributes['parent'] = parent_obj
+        name = tag.attrib['name']
+        self.objects[name] = QuestObject(name, **attributes)
+        if self.debug:
+            print("Created:", self.objects[name])
+        for child in delayed_children:
+            self.create_object(child, self.objects[name])
