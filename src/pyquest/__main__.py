@@ -60,5 +60,5 @@ if file_name[-4:] == ".zip" or file_name[-6:] == ".quest":
 else:
     if arguments.verbose:
         print("Hmm... doesn't look like a packed Quest game file to me.")
-    the_game = QuestGame(sys.argv[1], from_qfile=False, debug=arguments.verbose)
+    the_game = QuestGame(arguments.filename, from_qfile=False, debug=arguments.verbose)
     the_game.run()
