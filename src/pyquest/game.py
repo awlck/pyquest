@@ -52,17 +52,72 @@ class QuestGame:
         # self.tree = ET.parse(self.game_file)
         self.root = ET.fromstring(game_txt)
         if self.debug:
-            print("Successfully parsed ASLX file.")
+            print("Successfully read in ASLX file.")
 
         self.objects = {}
-        self.meta = {}
+        self.name = "No Name"
+        self.gameid = "UNKNOWN"
+        self.version = "UNKNOWN"
+        self.firstpublished = "UNKNOWN"
+        self.subtitle = ""
+        self.author = "Anonymous"
+        self.category = "None"
+        self.description = ""
+        self.cover = None
+        self.startup = None
+        self.settings = {}
 
-    def run(self):
+        if self.debug:
+            print("Beginning ASLX/XML tree traversal.")
         for element in self.root:
-            print(element)
+            if self.debug:
+                print(element)
+            if element.tag == "game":
+                self.name = element.attrib["name"]
+                for attr in element:
+                    if attr.tag == "attr":
+                        if attr.attrib["type"] == "boolean":
+                            self.settings[attr.attrib["name"]] = (attr.text == "true")
+                        elif attr.attrib["type"] == "int":
+                            self.settings[attr.attrib["name"]] = int(attr.text)
+                        else:
+                            self.settings[attr.attrib["name"]] = attr.text
+                        if self.debug:
+                            print("Set game option", attr.attrib["name"], "to",
+                                  self.settings[attr.attrib["name"]])
+                    elif attr.text is None and attr.attrib == {}:
+                        self.settings[attr.tag] = True
+                        if self.debug:
+                            print("Set flag", attr.tag)
+                    elif attr.tag == "start":
+                        if attr.attrib.get("type", None) == "script":
+                            self.startup = Script(attr.text)
+                        else:
+                            self.startup = attr.text
+                        if self.debug:
+                            print("Set startup output to", self.startup)
+                    elif attr.tag in {"gameid", "version", "firstpublished", "subtitle", "author",
+                                      "category", "description", "cover"}:
+                        self.__setattr__(attr.tag, attr.text)
+                        if self.debug:
+                            print("Set bibliographical info", attr.tag, "to", attr.text)
+                    else:
+                        self.settings[attr.tag] = attr.text
+                        if self.debug:
+                            print("Set game option", attr.tag, "to", self.settings[attr.tag])
             if element.tag == "object":
                 self.create_object(element)
             # TODO: Handle other types of tags
+        if self.debug:
+            print("Done traversing ASLX/XML tree.")
+
+    def run(self):
+        print("Welcome to", self.name, "by", self.author, "version", self.version)
+        if isinstance(self.startup, Script):
+            self.startup.call()
+        elif self.startup is not None:
+            print(self.startup)
+        pass
 
     def create_object(self, tag, parent_obj=None):
         attributes = {
@@ -81,7 +136,7 @@ class QuestGame:
                 if the_type == "script":
                     attributes[attr.tag] = Script(attr.text)
                 elif the_type == "boolean":
-                    attributes[attr.tag] = True if attr.text == "true" else False
+                    attributes[attr.tag] = (attr.text == "True")
                 elif the_type == "stringlist":
                     values = []
                     for item in attr:
