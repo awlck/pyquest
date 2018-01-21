@@ -19,7 +19,7 @@ import sys
 import tempfile
 from zipfile import ZipFile
 
-from pyquest.game import QuestGame
+import pyquest.game
 
 VERSION = "0.1-SNAPSHOT"
 
@@ -53,9 +53,10 @@ if file_name[-4:] == ".zip" or file_name[-6:] == ".quest":
     zipped.close()
     print(game_folder)
     # os.system('ls -lah ' + game_folder)
-    the_game = QuestGame(game_folder, launch_dir=os.path.sep.join(os.path.split(file_name)[:-1]),
-                         from_qfile=True, debug=arguments.verbose)
-    the_game.run()
+    pyquest.game.the_game = pyquest.game.QuestGame(game_folder,
+            launch_dir=os.path.sep.join(os.path.split(file_name)[:-1]), from_qfile=True,
+            debug=arguments.verbose)
+    pyquest.game.the_game.run()
     os.system('rm -rf ' + game_folder)
 else:
     if arguments.verbose:

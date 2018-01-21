@@ -1,3 +1,10 @@
+import os
+import sys
+import xml.etree.ElementTree as ET
+
+from pyquest.script_engine import Script, ScriptEngine, QuestValue
+from pyquest.world_model import QuestObject
+
 __author__ = "Adrian Welcker"
 __copyright__ = """Copyright 2018 Adrian Welcker
 
@@ -13,16 +20,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License."""
 
-import os
-import sys
-import xml.etree.ElementTree as ET
-
-from pyquest.script_engine import Script
-from pyquest.world_model import QuestObject
+the_game = None
 
 
 class QuestGame:
     def __init__(self, game_file, launch_dir=None, from_qfile=True, debug=False):
+        global the_game
+        the_game = self
         self.debug = debug
         if from_qfile:
             file_name = game_file + os.path.sep + "game.aslx"
@@ -54,7 +58,8 @@ class QuestGame:
         if self.debug:
             print("Successfully read in ASLX file.")
 
-        self.objects = {}
+        self.script_engine = ScriptEngine(self)
+        self.objects = {"game": self}
         self.name = "No Name"
         self.gameid = "UNKNOWN"
         self.version = "UNKNOWN"
@@ -65,65 +70,74 @@ class QuestGame:
         self.description = ""
         self.cover = None
         self.startup = None
-        self.settings = {}
+        # self.settings = {}
 
         if self.debug:
             print("Beginning ASLX/XML tree traversal.")
         for element in self.root:
             if self.debug:
-                print(element)
+                print("Processing: ", element)
             if element.tag == "game":
                 self.name = element.attrib["name"]
                 for attr in element:
                     if attr.tag == "attr":
                         if attr.attrib["type"] == "boolean":
-                            self.settings[attr.attrib["name"]] = (attr.text == "true")
+                            setattr(self, attr.attrib["name"], (attr.text == "True"))
                         elif attr.attrib["type"] == "int":
-                            self.settings[attr.attrib["name"]] = int(attr.text)
+                            setattr(self, attr.attrib["name"], int(attr.text))
                         else:
-                            self.settings[attr.attrib["name"]] = attr.text
+                            setattr(self, attr.attrib["name"], attr.text)
                         if self.debug:
                             print("Set game option", attr.attrib["name"], "to",
-                                  self.settings[attr.attrib["name"]])
+                                  getattr(self, attr.attrib["name"]))
                     elif attr.text is None and attr.attrib == {}:
-                        self.settings[attr.tag] = True
+                        setattr(self, attr.tag, True)
                         if self.debug:
                             print("Set flag", attr.tag)
                     elif attr.tag == "start":
                         if attr.attrib.get("type", None) == "script":
-                            self.startup = Script(attr.text)
+                            self.startup = Script("start", attr.text)
                         else:
                             self.startup = attr.text
                         if self.debug:
                             print("Set startup output to", self.startup)
                     elif attr.tag in {"gameid", "version", "firstpublished", "subtitle", "author",
                                       "category", "description", "cover"}:
-                        self.__setattr__(attr.tag, attr.text)
+                        setattr(self, attr.tag, attr.text)
                         if self.debug:
                             print("Set bibliographical info", attr.tag, "to", attr.text)
                     else:
-                        self.settings[attr.tag] = attr.text
+                        setattr(self, attr.tag, attr.text)
                         if self.debug:
-                            print("Set game option", attr.tag, "to", self.settings[attr.tag])
-            if element.tag == "object":
+                            print("Set game option", attr.tag, "to", getattr(self, attr.tag))
+            elif element.tag == "object":
                 self.create_object(element)
-            # TODO: Handle other types of tags
+            elif element.tag == "function":
+                if "parameters" in element.attrib:
+                    self.script_engine.define_function(element.attrib['name'],
+                                                       *element.attrib['parameters'].split(", "),
+                                                       body=element.text)
+                else:
+                    self.script_engine.define_function(element.attrib['name'], body=element.text)
+            # TODO: Handle other types of tags (command, verb)
         if self.debug:
             print("Done traversing ASLX/XML tree.")
+
+        self.script_engine.prep()
 
     def run(self):
         print("Welcome to", self.name, "by", self.author, "version", self.version)
         if isinstance(self.startup, Script):
-            self.startup.call()
+            self.startup()
         elif self.startup is not None:
             print(self.startup)
-        pass
 
     def create_object(self, tag, parent_obj=None):
         attributes = {
             "inherit": []
         }
         delayed_children = []
+        name = tag.attrib['name']
         for attr in tag:
             if attr.tag == "object":
                 delayed_children.append(attr)
@@ -134,7 +148,7 @@ class QuestGame:
             else:
                 the_type = attr.attrib.get('type', None)
                 if the_type == "script":
-                    attributes[attr.tag] = Script(attr.text)
+                    attributes[attr.tag] = Script(name + "->" + attr.tag, attr.text)
                 elif the_type == "boolean":
                     attributes[attr.tag] = (attr.text == "True")
                 elif the_type == "stringlist":
@@ -146,9 +160,14 @@ class QuestGame:
                 else:
                     attributes[attr.tag] = attr.text
         attributes['parent'] = parent_obj
-        name = tag.attrib['name']
         self.objects[name] = QuestObject(name, **attributes)
         if self.debug:
             print("Created:", self.objects[name])
         for child in delayed_children:
             self.create_object(child, self.objects[name])
+
+    def __setattr__(self, key, value):
+        if isinstance(value, int) or isinstance(value, str) or isinstance(value, float):
+            object.__setattr__(self, key, QuestValue(value))
+        else:
+            object.__setattr__(self, key, value)

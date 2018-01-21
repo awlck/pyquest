@@ -1,3 +1,5 @@
+from pyquest.script_engine import QuestValue
+
 __author__ = "Adrian Welcker"
 __copyright__ = """Copyright 2018 Adrian Welcker
 
@@ -15,10 +17,15 @@ limitations under the License."""
 
 
 class QuestObject:
-    def __init__(self, name, **kwargs):
+    def __init__(self, name, **kwattribs):
+        self.__dict__ = kwattribs
         self.name = name
-        self.attributes = kwargs
 
     def __str__(self):
-        return "Object {} with attributes {}".format(self.name, self.attributes)
+        return "Object {} with attributes {}".format(self.name, self.__dict__)
 
+    def __setattr__(self, key, value):
+        if isinstance(value, int) or isinstance(value, str) or isinstance(value, float):
+            object.__setattr__(self, key, QuestValue(value))
+        else:
+            object.__setattr__(self, key, value)
