@@ -1,3 +1,11 @@
+import argparse
+import os
+import sys
+import tempfile
+from zipfile import ZipFile
+
+import pyquest.game
+
 __author__ = "Adrian Welcker"
 __copyright__ = """Copyright 2018 Adrian Welcker
 
@@ -12,14 +20,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License."""
-
-import argparse
-import os
-import sys
-import tempfile
-from zipfile import ZipFile
-
-import pyquest.game
 
 VERSION = "0.1-SNAPSHOT"
 
@@ -53,13 +53,12 @@ if file_name[-4:] == ".zip" or file_name[-6:] == ".quest":
     zipped.close()
     print(game_folder)
     # os.system('ls -lah ' + game_folder)
-    pyquest.game.the_game = pyquest.game.QuestGame(game_folder,
-            launch_dir=os.path.sep.join(os.path.split(file_name)[:-1]), from_qfile=True,
-            debug=arguments.verbose)
+    pyquest.game.QuestGame(game_folder, launch_dir=os.path.sep.join(os.path.split(file_name)[:-1]),
+                           from_qfile=True, debug=arguments.verbose)
     pyquest.game.the_game.run()
     os.system('rm -rf ' + game_folder)
 else:
     if arguments.verbose:
         print("Hmm... doesn't look like a packed Quest game file to me.")
-    the_game = QuestGame(arguments.filename, from_qfile=False, debug=arguments.verbose)
-    the_game.run()
+    pyquest.game.QuestGame(arguments.filename, from_qfile=False, debug=arguments.verbose)
+    pyquest.game.the_game.run()
